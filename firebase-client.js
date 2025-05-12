@@ -3,14 +3,14 @@ console.log('Chargement de firebase-client.js');
 
 // Configuration Firebase (À REMPLACER avec vos propres valeurs)
 const firebaseConfig = {
-  apiKey: "AIzaSyC_votre_api_key",
+  apiKey: "AIzaSyAMl9aeQUk82_Z55mc00HQhicp62z0UnLU",
   authDomain: "valentin-dalili-patisserie.firebaseapp.com",
   projectId: "valentin-dalili-patisserie",
-  storageBucket: "valentin-dalili-patisserie.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abc123def456"
+  storageBucket: "valentin-dalili-patisserie.firebasestorage.app",
+  messagingSenderId: "882165140149",
+  appId: "1:882165140149:web:dc01dc7264bff9c8b1ccfc",
+  measurementId: "G-B9QBTXTK6H"
 };
-
 // Initialiser Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
