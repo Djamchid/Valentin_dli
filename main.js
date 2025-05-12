@@ -787,10 +787,18 @@ async function showAdminInterface() {
     }
     }
     
-    alert('Commentaire rejeté avec succès !');
+alert('Commentaire rejeté avec succès !');
     } else {
-    console.error('[MAIN] Erreur lors du rejet du commentaire:', response.error);
-    alert('Erreur lors du rejet du commentaire. Veuillez réessayer.');
+        console.error('[MAIN] Erreur lors du rejet du commentaire:', response.error);
+        alert('Erreur lors du rejet du commentaire. Veuillez réessayer.');
     }
     } catch (error) {
-    console.error('[MAIN] Exception
+        console.error('[MAIN] Exception lors du rejet du commentaire:', error);
+        alert('Erreur lors du rejet du commentaire. Veuillez réessayer.');
+    }
+    });
+    });
+}
+
+// Initialiser l'application au chargement
+document.addEventListener('DOMContentLoaded', initApp);
