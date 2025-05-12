@@ -1,5 +1,5 @@
 // Remplacer cette URL par l'URL publiée de votre script Apps Script
-const API_URL = 'https://script.google.com/macros/s/VOTRE_ID_DE_DÉPLOIEMENT/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyCYiOIbKvP9x7RhDDHvUMzqINuDAsUyL5bSSJ4lQMCqa5wSXplXdVygzg4Jht4gJGOjQ/exec';
 
 // Classe pour gérer les appels API
 class ApiClient {
