@@ -518,6 +518,16 @@
             color: white;
         }
         
+        .notification {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            text-align: center;
+            display: none;
+        }
+        
         @media (max-width: 768px) {
             .creations-grid {
                 grid-template-columns: 1fr;
@@ -555,7 +565,7 @@
     
     <div class="container" id="accueil">
         <div class="introduction">
-            <img src="https://via.placeholder.com/400x400" alt="Photo de Valentin">
+            <img src="https://picsum.photos/400/400" alt="Photo de Valentin">
             <h1>L'Art de la Pâtisserie</h1>
             <p>Après un parcours semi-professionnel dans la danse, j'ai découvert une nouvelle passion pour la pâtisserie de haute volée. Chaque création est une recherche d'équilibre entre tradition et innovation, un accord parfait entre saveurs et textures. Je vous invite à découvrir mon univers gastronomique où chaque détail compte.</p>
             
@@ -567,6 +577,7 @@
         </div>
         
         <h2 id="creations">Créations Signatures</h2>
+        <div id="apiNotification" class="notification"></div>
         <div class="creations-grid" id="creationsGrid">
             <!-- Les créations seront ajoutées ici dynamiquement -->
         </div>
@@ -615,6 +626,10 @@
         <div class="modal-content">
             <h2>Connexion Admin</h2>
             <div class="form-group">
+                <label for="adminEmail">Email</label>
+                <input type="email" id="adminEmail">
+            </div>
+            <div class="form-group">
                 <label for="adminPassword">Mot de passe</label>
                 <input type="password" id="adminPassword">
             </div>
@@ -623,7 +638,15 @@
     </div>
     
     <!-- Scripts -->
-    <script src="api-client.js"></script>
+    <!-- Firebase App (obligatoire) -->
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+    <!-- Firebase Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+    <!-- Firebase Auth -->
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+
+    <!-- Nos scripts -->
+    <script src="firebase-client.js"></script>
     <script src="main.js"></script>
 </body>
 </html>
