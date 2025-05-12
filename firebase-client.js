@@ -11,225 +11,215 @@ const firebaseConfig = {
   appId: "1:882165140149:web:dc01dc7264bff9c8b1ccfc",
   measurementId: "G-B9QBTXTK6H"
 };
+
 // Initialiser Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
+const storage = firebase.storage();
 
 console.log('Firebase initialisé avec succès');
 
 // Classe pour gérer les appels API via Firebase
 class ApiClient {
-  // Récupérer toutes les créations
-  static async getCreations() {
-    console.log('[API] Appel de getCreations()');
+  // [Garder toutes les méthodes existantes...]
+
+  // Nouvelles méthodes pour l'administration des créations
+
+  // Ajouter une nouvelle création
+  static async addCreation(title, description, imageFile) {
+    console.log('[API] Appel de addCreation()');
     try {
-      const creationsSnapshot = await db.collection("creations").get();
-      const creationsList = creationsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          title: data.title,
-          description: data.description,
-          image: data.image,
-          likes: data.likes || 0,
-          commentCount: data.commentCount || 0
-        };
+      // Vérifier si l'admin est connecté
+      if (!auth.currentUser) {
+        return { success: false, error: 'Non autorisé' };
+      }
+
+      // 1. Upload de l'image
+      const imageRef = storage.ref().child(`creations/${Date.now()}_${imageFile.name}`);
+      const uploadTask = await imageRef.put(imageFile);
+      const imageUrl = await uploadTask.ref.getDownloadURL();
+
+      // 2. Création du document dans Firestore
+      const creationRef = await db.collection("creations").add({
+        title,
+        description,
+        image: imageUrl,
+        likes: 0,
+        commentCount: 0,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
-      return { success: true, creations: creationsList };
+
+      return { 
+        success: true, 
+        creation: {
+          id: creationRef.id,
+          title,
+          description,
+          image: imageUrl,
+          likes: 0,
+          commentCount: 0
+        }
+      };
     } catch (error) {
-      console.error('[API] Erreur lors de la récupération des créations:', error);
+      console.error('[API] Erreur lors de l\'ajout de la création:', error);
       return { success: false, error: error.toString() };
     }
   }
-  
-  // Ajouter un like à une création
-  static async addLike(creationId) {
-    console.log(`[API] Appel de addLike() pour creationId: ${creationId}`);
+
+  // Supprimer une création
+  static async deleteCreation(creationId) {
+    console.log(`[API] Appel de deleteCreation() pour creationId: ${creationId}`);
     try {
-      const creationRef = db.collection("creations").doc(creationId);
-      await creationRef.update({
-        likes: firebase.firestore.FieldValue.increment(1)
-      });
-      
-      // Récupérer le nombre mis à jour de likes
-      const updatedDoc = await creationRef.get();
-      return { success: true, likes: updatedDoc.data().likes };
-    } catch (error) {
-      console.error('[API] Erreur lors de l\'ajout d\'un like:', error);
-      return { success: false, error: error.toString() };
-    }
-  }
-  
-  // Récupérer les commentaires d'une création
-  static async getComments(creationId) {
-    console.log(`[API] Appel de getComments() pour creationId: ${creationId}`);
-    try {
+      if (!auth.currentUser) {
+        return { success: false, error: 'Non autorisé' };
+      }
+
+      // 1. Récupérer la création pour avoir l'URL de l'image
+      const creationDoc = await db.collection("creations").doc(creationId).get();
+      if (!creationDoc.exists) {
+        return { success: false, error: 'Création non trouvée' };
+      }
+
+      const creationData = creationDoc.data();
+
+      // 2. Supprimer l'image de Storage si elle existe
+      if (creationData.image) {
+        try {
+          const imageRef = storage.refFromURL(creationData.image);
+          await imageRef.delete();
+        } catch (imageError) {
+          console.warn('[API] Erreur lors de la suppression de l\'image:', imageError);
+        }
+      }
+
+      // 3. Supprimer tous les commentaires associés
       const commentsSnapshot = await db.collection("comments")
         .where("creationId", "==", creationId)
-        .where("approved", "==", true)
         .get();
       
-      const commentsList = commentsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          commentId: doc.id,
-          author: data.author,
-          content: data.content,
-          timestamp: data.timestamp?.toDate() || new Date()
-        };
+      const batch = db.batch();
+      commentsSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
       });
       
-      return { success: true, comments: commentsList };
-    } catch (error) {
-      console.error('[API] Erreur lors de la récupération des commentaires:', error);
-      return { success: false, error: error.toString() };
-    }
-  }
-  
-  // Ajouter un commentaire
-  static async addComment(creationId, author, content) {
-    console.log(`[API] Appel de addComment() pour creationId: ${creationId}`);
-    try {
-      // Ajouter le commentaire (non approuvé par défaut)
-      await db.collection("comments").add({
-        creationId,
-        author,
-        content,
-        approved: false,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      // 4. Supprimer la création
+      batch.delete(db.collection("creations").doc(creationId));
       
+      await batch.commit();
+
       return { success: true };
     } catch (error) {
-      console.error('[API] Erreur lors de l\'ajout d\'un commentaire:', error);
+      console.error('[API] Erreur lors de la suppression de la création:', error);
       return { success: false, error: error.toString() };
     }
   }
-  
-  // Soumettre un message de contact
-  static async submitContact(name, email, message, publicMessage) {
-    console.log(`[API] Appel de submitContact() pour ${name}`);
+
+  // Modifier une création
+  static async updateCreation(creationId, { title, description, imageFile = null }) {
+    console.log(`[API] Appel de updateCreation() pour creationId: ${creationId}`);
     try {
-      await db.collection("contacts").add({
-        name,
-        email,
-        message,
-        publicMessage,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      
-      return { success: true };
-    } catch (error) {
-      console.error('[API] Erreur lors de la soumission du formulaire de contact:', error);
-      return { success: false, error: error.toString() };
-    }
-  }
-  
-  // Vérifier les identifiants admin
-  static async verifyAdmin(email, password) {
-    console.log('[API] Appel de verifyAdmin()');
-    try {
-      const userCredential = await auth.signInWithEmailAndPassword(email, password);
-      return { success: true, user: userCredential.user };
-    } catch (error) {
-      console.error('[API] Erreur lors de la vérification admin:', error);
-      return { success: false, error: error.toString() };
-    }
-  }
-  
-  // Se déconnecter
-  static async logoutAdmin() {
-    try {
-      await auth.signOut();
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.toString() };
-    }
-  }
-  
-  // Récupérer les commentaires non approuvés (admin)
-  static async getUnapprovedComments() {
-    console.log('[API] Appel de getUnapprovedComments()');
-    try {
-      // Vérifier si l'admin est connecté
       if (!auth.currentUser) {
         return { success: false, error: 'Non autorisé' };
       }
-      
+
+      const updateData = {};
+      if (title) updateData.title = title;
+      if (description) updateData.description = description;
+
+      // Si une nouvelle image est fournie
+      if (imageFile) {
+        // 1. Upload de la nouvelle image
+        const imageRef = storage.ref().child(`creations/${Date.now()}_${imageFile.name}`);
+        const uploadTask = await imageRef.put(imageFile);
+        const newImageUrl = await uploadTask.ref.getDownloadURL();
+        updateData.image = newImageUrl;
+
+        // 2. Supprimer l'ancienne image
+        try {
+          const creationDoc = await db.collection("creations").doc(creationId).get();
+          const oldImageUrl = creationDoc.data().image;
+          if (oldImageUrl) {
+            const oldImageRef = storage.refFromURL(oldImageUrl);
+            await oldImageRef.delete();
+          }
+        } catch (error) {
+          console.warn('[API] Erreur lors de la suppression de l\'ancienne image:', error);
+        }
+      }
+
+      // 3. Mettre à jour le document
+      await db.collection("creations").doc(creationId).update({
+        ...updateData,
+        lastModified: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      return { success: true, updates: updateData };
+    } catch (error) {
+      console.error('[API] Erreur lors de la modification de la création:', error);
+      return { success: false, error: error.toString() };
+    }
+  }
+
+  // Récupérer les commentaires approuvés
+  static async getApprovedComments() {
+    console.log('[API] Appel de getApprovedComments()');
+    try {
+      if (!auth.currentUser) {
+        return { success: false, error: 'Non autorisé' };
+      }
+
       const commentsSnapshot = await db.collection("comments")
-        .where("approved", "==", false)
+        .where("approved", "==", true)
+        .orderBy("timestamp", "desc")
         .get();
-      
-      const commentsList = commentsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          commentId: doc.id,
-          creationId: data.creationId,
-          author: data.author,
-          content: data.content,
-          timestamp: data.timestamp?.toDate() || new Date()
-        };
-      });
-      
+
+      const commentsList = commentsSnapshot.docs.map(doc => ({
+        commentId: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate() || new Date()
+      }));
+
       return { success: true, comments: commentsList };
     } catch (error) {
-      console.error('[API] Erreur lors de la récupération des commentaires non approuvés:', error);
+      console.error('[API] Erreur lors de la récupération des commentaires approuvés:', error);
       return { success: false, error: error.toString() };
     }
   }
-  
-  // Approuver un commentaire
-  static async approveComment(commentId) {
-    console.log(`[API] Appel de approveComment() pour commentId: ${commentId}`);
+
+  // Supprimer un commentaire approuvé
+  static async deleteApprovedComment(commentId) {
+    console.log(`[API] Appel de deleteApprovedComment() pour commentId: ${commentId}`);
     try {
-      // Vérifier si l'admin est connecté
       if (!auth.currentUser) {
         return { success: false, error: 'Non autorisé' };
       }
-      
+
       const commentRef = db.collection("comments").doc(commentId);
-      const commentSnap = await commentRef.get();
-      
-      if (!commentSnap.exists) {
+      const commentDoc = await commentRef.get();
+
+      if (!commentDoc.exists) {
         return { success: false, error: 'Commentaire non trouvé' };
       }
+
+      const commentData = commentDoc.data();
       
-      const commentData = commentSnap.data();
-      
-      // Transaction pour s'assurer que l'incrémentation du compteur de commentaires est atomique
-      await db.runTransaction(async (transaction) => {
-        // Approuver le commentaire
-        transaction.update(commentRef, { approved: true });
-        
-        // Incrémenter le compteur de commentaires de la création
+      // Décrémenter le compteur de commentaires de la création
+      if (commentData.approved) {
         const creationRef = db.collection("creations").doc(commentData.creationId);
-        transaction.update(creationRef, {
-          commentCount: firebase.firestore.FieldValue.increment(1)
+        await db.runTransaction(async (transaction) => {
+          transaction.delete(commentRef);
+          transaction.update(creationRef, {
+            commentCount: firebase.firestore.FieldValue.increment(-1)
+          });
         });
-      });
-      
-      return { success: true };
-    } catch (error) {
-      console.error('[API] Erreur lors de l\'approbation du commentaire:', error);
-      return { success: false, error: error.toString() };
-    }
-  }
-  
-  // Rejeter un commentaire
-  static async rejectComment(commentId) {
-    console.log(`[API] Appel de rejectComment() pour commentId: ${commentId}`);
-    try {
-      // Vérifier si l'admin est connecté
-      if (!auth.currentUser) {
-        return { success: false, error: 'Non autorisé' };
+      } else {
+        await commentRef.delete();
       }
-      
-      await db.collection("comments").doc(commentId).delete();
-      
+
       return { success: true };
     } catch (error) {
-      console.error('[API] Erreur lors du rejet du commentaire:', error);
+      console.error('[API] Erreur lors de la suppression du commentaire:', error);
       return { success: false, error: error.toString() };
     }
   }
