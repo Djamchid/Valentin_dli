@@ -7,34 +7,34 @@ const creations = [];
 // Données de secours en cas d'échec de l'API
 const BACKUP_CREATIONS = [
     {
-        id: 1,
+        id: "1",
         title: "Fraisier Contemporain",
         description: "Une réinterprétation du fraisier classique. Génoise à la vanille de Madagascar infusée au basilic, crème diplomate légère, fraises sélectionnées pour leur parfum et finition miroir.",
-        image: "https://via.placeholder.com/400x300",
+        image: "https://picsum.photos/400/300",
         likes: 25,
         commentCount: 2
     },
     {
-        id: 2,
+        id: "2",
         title: "Macarons Pistache & Framboise",
         description: "Macarons à la pistache de Bronte, ganache montée à la pistache et cœur coulant de framboise. La coque offre un contraste parfait entre croquant et fondant.",
-        image: "https://via.placeholder.com/400x300",
+        image: "https://picsum.photos/400/300",
         likes: 42,
         commentCount: 2
     },
     {
-        id: 3,
+        id: "3",
         title: "Paris-Brest Revisité",
         description: "Paris-Brest aux éclats de noisettes du Piémont torréfiées, praliné maison à l'ancienne, crème mousseline pralinée et touche subtile de citron vert.",
-        image: "https://via.placeholder.com/400x300",
+        image: "https://picsum.photos/400/300",
         likes: 18,
         commentCount: 1
     },
     {
-        id: 4,
+        id: "4",
         title: "Tarte Fine aux Pommes",
         description: "Pâte feuilletée pur beurre, pommes Pink Lady caramélisées au beurre de Normandie et à la vanille de Tahiti, touche de cannelle de Ceylan et crème d'amande.",
-        image: "https://via.placeholder.com/400x300",
+        image: "https://picsum.photos/400/300",
         likes: 31,
         commentCount: 0
     }
@@ -45,18 +45,27 @@ async function displayCreations() {
     console.log('[MAIN] Fonction displayCreations() appelée');
     
     try {
-        console.log('[MAIN] Tentative de récupération des créations depuis l\'API');
+        console.log('[MAIN] Tentative de récupération des créations depuis Firebase');
         const response = await ApiClient.getCreations();
         
         if (response.success) {
             console.log('[MAIN] Créations récupérées avec succès:', response.creations);
             creations.length = 0; // Vider le tableau existant
             creations.push(...response.creations); // Ajouter les nouvelles créations
+            
+            // Masquer la notification d'erreur si elle était visible
+            const notification = document.getElementById('apiNotification');
+            if (notification) {
+                notification.style.display = 'none';
+            }
         } else {
             console.error('[MAIN] Erreur lors de la récupération des créations:', response.error);
             console.log('[MAIN] Utilisation des données de secours');
             creations.length = 0;
             creations.push(...BACKUP_CREATIONS); // Utiliser les données de secours
+            
+            // Afficher une notification d'erreur
+            showApiNotification("Connexion à la base de données impossible. Affichage des créations depuis les données locales.");
         }
         
         // Afficher les créations dans la grille
@@ -73,7 +82,7 @@ async function displayCreations() {
             const creationCard = document.createElement('div');
             creationCard.className = 'creation-card';
             creationCard.innerHTML = `
-                <img src="${creation.image.replace('/api/placeholder/', 'https://via.placeholder.com/')}" alt="${creation.title}" class="creation-image">
+                <img src="${creation.image.replace('/api/placeholder/', 'https://picsum.photos/')}" alt="${creation.title}" class="creation-image">
                 <div class="creation-details">
                     <h3 class="creation-title">${creation.title}</h3>
                     <p class="creation-description">${creation.description}</p>
@@ -112,45 +121,52 @@ async function displayCreations() {
         creations.length = 0;
         creations.push(...BACKUP_CREATIONS);
         
+        // Afficher une notification d'erreur
+        showApiNotification("Une erreur est survenue. Affichage des créations depuis les données locales.");
+        
         const creationsGrid = document.getElementById('creationsGrid');
         if (creationsGrid) {
-            creationsGrid.innerHTML = '<p>Impossible de charger les créations depuis le serveur. Affichage des données locales.</p>';
-            
-            // Afficher quand même les créations locales
-            setTimeout(() => {
-                creationsGrid.innerHTML = '';
-                creations.forEach(creation => {
-                    const creationCard = document.createElement('div');
-                    creationCard.className = 'creation-card';
-                    creationCard.innerHTML = `
-                        <img src="${creation.image.replace('/api/placeholder/', 'https://via.placeholder.com/')}" alt="${creation.title}" class="creation-image">
-                        <div class="creation-details">
-                            <h3 class="creation-title">${creation.title}</h3>
-                            <p class="creation-description">${creation.description}</p>
-                            <div class="creation-interactions">
-                                <button class="like-btn" data-id="${creation.id}">
-                                    <i class="fas fa-heart"></i> <span class="likes-count">${creation.likes}</span>
-                                </button>
-                                <button class="comments-btn" data-id="${creation.id}">
-                                    <i class="fas fa-comment"></i> <span class="comments-count">${creation.commentCount || 0}</span>
-                                </button>
-                            </div>
+            creationsGrid.innerHTML = '';
+            creations.forEach(creation => {
+                const creationCard = document.createElement('div');
+                creationCard.className = 'creation-card';
+                creationCard.innerHTML = `
+                    <img src="${creation.image.replace('/api/placeholder/', 'https://picsum.photos/')}" alt="${creation.title}" class="creation-image">
+                    <div class="creation-details">
+                        <h3 class="creation-title">${creation.title}</h3>
+                        <p class="creation-description">${creation.description}</p>
+                        <div class="creation-interactions">
+                            <button class="like-btn" data-id="${creation.id}">
+                                <i class="fas fa-heart"></i> <span class="likes-count">${creation.likes}</span>
+                            </button>
+                            <button class="comments-btn" data-id="${creation.id}">
+                                <i class="fas fa-comment"></i> <span class="comments-count">${creation.commentCount || 0}</span>
+                            </button>
                         </div>
-                    `;
-                    
-                    creationsGrid.appendChild(creationCard);
-                });
+                    </div>
+                `;
                 
-                // Ajouter les écouteurs d'événements
-                document.querySelectorAll('.like-btn').forEach(btn => {
-                    btn.addEventListener('click', handleLike);
-                });
-                
-                document.querySelectorAll('.comments-btn').forEach(btn => {
-                    btn.addEventListener('click', openCommentsModal);
-                });
-            }, 1000);
+                creationsGrid.appendChild(creationCard);
+            });
+            
+            // Ajouter les écouteurs d'événements
+            document.querySelectorAll('.like-btn').forEach(btn => {
+                btn.addEventListener('click', handleLike);
+            });
+            
+            document.querySelectorAll('.comments-btn').forEach(btn => {
+                btn.addEventListener('click', openCommentsModal);
+            });
         }
+    }
+}
+
+// Afficher une notification API
+function showApiNotification(message) {
+    const notification = document.getElementById('apiNotification');
+    if (notification) {
+        notification.textContent = message;
+        notification.style.display = 'block';
     }
 }
 
@@ -159,7 +175,7 @@ async function handleLike(e) {
     console.log('[MAIN] Fonction handleLike() appelée');
     
     const button = e.currentTarget;
-    const creationId = parseInt(button.dataset.id);
+    const creationId = button.dataset.id;
     console.log(`[MAIN] Ajout d'un like pour la création ID: ${creationId}`);
     
     try {
@@ -218,7 +234,7 @@ async function handleLike(e) {
 async function openCommentsModal(e) {
     console.log('[MAIN] Fonction openCommentsModal() appelée');
     
-    const creationId = parseInt(e.currentTarget.dataset.id);
+    const creationId = e.currentTarget.dataset.id;
     console.log(`[MAIN] Ouverture de la modal pour la création ID: ${creationId}`);
     
     const creation = creations.find(c => c.id === creationId);
@@ -367,7 +383,7 @@ function showSimpleCommentsModal(creation) {
 async function submitComment(e) {
     console.log('[MAIN] Fonction submitComment() appelée');
     
-    const creationId = parseInt(e.currentTarget.dataset.id);
+    const creationId = e.currentTarget.dataset.id;
     const commentText = document.getElementById('newComment').value.trim();
     const authorName = document.getElementById('commentAuthor').value.trim();
     
@@ -549,6 +565,7 @@ async function showAdminInterface() {
             let adminContent = `
                 <h2 style="margin-bottom: 1.5rem;">Interface d'administration</h2>
                 <button id="closeAdmin" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                <button id="logoutAdmin" style="position: absolute; top: 10px; right: 50px; background: var(--primary-color); color: white; border: none; padding: 5px 10px; cursor: pointer;">Déconnexion</button>
                 <h3>Commentaires en attente de modération</h3>
             `;
             
@@ -589,6 +606,16 @@ async function showAdminInterface() {
                 });
             }
             
+            // Ajouter l'écouteur pour la déconnexion
+            const logoutButton = document.getElementById('logoutAdmin');
+            if (logoutButton) {
+                logoutButton.addEventListener('click', async () => {
+                    await ApiClient.logoutAdmin();
+                    document.body.removeChild(adminInterface);
+                    alert('Vous avez été déconnecté avec succès.');
+                });
+            }
+            
             // Écouteurs pour les boutons d'approbation/rejet
             document.querySelectorAll('.approve-btn').forEach(btn => {
                 btn.addEventListener('click', async function() {
@@ -613,33 +640,16 @@ async function showAdminInterface() {
                             }
                             
                             alert('Commentaire approuvé avec succès !');
+                            
+                            // Rafraîchir l'affichage des créations pour mettre à jour les compteurs
+                            displayCreations();
                         } else {
                             console.error('[MAIN] Erreur lors de l\'approbation du commentaire:', response.error);
-                            
-                            // Simuler l'approbation locale
-                            this.parentElement.parentElement.remove();
-                            if (document.querySelectorAll('.admin-comment').length === 0) {
-                                const commentsContainer = document.querySelector('.admin-comments');
-                                if (commentsContainer) {
-                                    commentsContainer.innerHTML = '<p>Aucun commentaire en attente de modération.</p>';
-                                }
-                            }
-                            
-                            alert('Commentaire approuvé avec succès !');
+                            alert('Erreur lors de l\'approbation du commentaire. Veuillez réessayer.');
                         }
                     } catch (error) {
                         console.error('[MAIN] Exception lors de l\'approbation du commentaire:', error);
-                        
-                        // Simuler l'approbation locale en cas d'erreur
-                        this.parentElement.parentElement.remove();
-                        if (document.querySelectorAll('.admin-comment').length === 0) {
-                            const commentsContainer = document.querySelector('.admin-comments');
-                            if (commentsContainer) {
-                                commentsContainer.innerHTML = '<p>Aucun commentaire en attente de modération.</p>';
-                            }
-                        }
-                        
-                        alert('Commentaire approuvé avec succès !');
+                        alert('Erreur lors de l\'approbation du commentaire. Veuillez réessayer.');
                     }
                 });
             });
@@ -669,31 +679,11 @@ async function showAdminInterface() {
                             alert('Commentaire rejeté avec succès !');
                         } else {
                             console.error('[MAIN] Erreur lors du rejet du commentaire:', response.error);
-                            
-                            // Simuler le rejet local
-                            this.parentElement.parentElement.remove();
-                            if (document.querySelectorAll('.admin-comment').length === 0) {
-                                const commentsContainer = document.querySelector('.admin-comments');
-                                if (commentsContainer) {
-                                    commentsContainer.innerHTML = '<p>Aucun commentaire en attente de modération.</p>';
-                                }
-                            }
-                            
-                            alert('Commentaire rejeté avec succès !');
+                            alert('Erreur lors du rejet du commentaire. Veuillez réessayer.');
                         }
                     } catch (error) {
                         console.error('[MAIN] Exception lors du rejet du commentaire:', error);
-                        
-                        // Simuler le rejet local en cas d'erreur
-                        this.parentElement.parentElement.remove();
-                        if (document.querySelectorAll('.admin-comment').length === 0) {
-                            const commentsContainer = document.querySelector('.admin-comments');
-                            if (commentsContainer) {
-                                commentsContainer.innerHTML = '<p>Aucun commentaire en attente de modération.</p>';
-                            }
-                        }
-                        
-                        alert('Commentaire rejeté avec succès !');
+                        alert('Erreur lors du rejet du commentaire. Veuillez réessayer.');
                     }
                 });
             });
@@ -720,22 +710,25 @@ function setupAdminLogin() {
     adminLoginBtn.addEventListener('click', async function() {
         console.log('[MAIN] Tentative de connexion admin');
         
+        const emailInput = document.getElementById('adminEmail');
         const passwordInput = document.getElementById('adminPassword');
-        if (!passwordInput) {
-            console.error('[MAIN] Élément #adminPassword introuvable');
+        
+        if (!emailInput || !passwordInput) {
+            console.error('[MAIN] Éléments de formulaire introuvables');
             return;
         }
         
+        const email = emailInput.value;
         const password = passwordInput.value;
         
-        if (!password) {
-            alert('Veuillez entrer le mot de passe.');
+        if (!email || !password) {
+            alert('Veuillez remplir tous les champs.');
             return;
         }
         
         try {
-            console.log('[MAIN] Vérification du mot de passe admin');
-            const response = await ApiClient.verifyAdmin(password);
+            console.log('[MAIN] Vérification des identifiants admin');
+            const response = await ApiClient.verifyAdmin(email, password);
             
             if (response.success) {
                 console.log('[MAIN] Connexion admin réussie');
@@ -748,37 +741,11 @@ function setupAdminLogin() {
                 showAdminInterface();
             } else {
                 console.error('[MAIN] Échec de la connexion admin:', response.error);
-                
-                // Pour la démo, accepter le mot de passe "admin123" même sans API
-                if (password === 'admin123') {
-                    console.log('[MAIN] Connexion admin réussie avec le mot de passe de secours');
-                    
-                    const adminModal = document.getElementById('adminModal');
-                    if (adminModal) {
-                        adminModal.style.display = 'none';
-                    }
-                    
-                    showAdminInterface();
-                } else {
-                    alert('Mot de passe incorrect.');
-                }
+                alert('Identifiants incorrects. Veuillez réessayer.');
             }
         } catch (error) {
-            console.error('[MAIN] Exception lors de la vérification du mot de passe admin:', error);
-            
-            // Pour la démo, accepter le mot de passe "admin123" même en cas d'erreur
-            if (password === 'admin123') {
-                console.log('[MAIN] Connexion admin réussie avec le mot de passe de secours');
-                
-                const adminModal = document.getElementById('adminModal');
-                if (adminModal) {
-                    adminModal.style.display = 'none';
-                }
-                
-                showAdminInterface();
-            } else {
-                alert('Impossible de vérifier le mot de passe. Veuillez réessayer plus tard.');
-            }
+            console.error('[MAIN] Exception lors de la vérification des identifiants admin:', error);
+            alert('Impossible de vérifier les identifiants. Veuillez réessayer plus tard.');
         }
     });
 }
@@ -817,7 +784,7 @@ function initApp() {
     // Remplacer tous les placeholders d'images
     document.querySelectorAll('img[src^="/api/placeholder/"]').forEach(img => {
         const src = img.getAttribute('src');
-        const newSrc = src.replace('/api/placeholder/', 'https://via.placeholder.com/');
+        const newSrc = src.replace('/api/placeholder/', 'https://picsum.photos/');
         console.log(`[MAIN] Remplacement d'image: ${src} -> ${newSrc}`);
         img.setAttribute('src', newSrc);
     });
