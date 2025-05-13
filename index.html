@@ -459,6 +459,23 @@
             text-decoration: underline;
         }
         
+        .admin-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+            transition: all 0.3s;
+        }
+        
+        .admin-btn:hover {
+            background-color: var(--accent-color);
+        }
+        
         .modal {
             display: none;
             position: fixed;
@@ -610,6 +627,7 @@
     <footer>
         <p>&copy; 2025 Valentin Dalili - Tous droits réservés</p>
         <p>Instagram: <a href="https://instagram.com/valentin.dalili_bp">@valentin.dalili_bp</a></p>
+        <button id="adminButton" class="admin-btn">Admin</button>
     </footer>
     
     <!-- Modal pour les commentaires -->
@@ -636,10 +654,7 @@
             <button class="submit-btn" id="adminLoginBtn">Se connecter</button>
         </div>
     </div>
-    <!-- ... existing content ... -->
-
-    <button id="adminButton" style="position: fixed; bottom: 20px; right: 20px; background-color: var(--secondary-color); color: white; border: none; padding: 0.5rem 1rem; cursor: pointer; border-radius: 5px; z-index: 1000;">Admin</button>
-
+    
     <!-- Scripts -->
     <!-- Firebase App (obligatoire) -->
     <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
