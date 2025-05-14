@@ -16,7 +16,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
-const storage = firebase.storage();
 
 console.log('Firebase initialisé avec succès');
 
@@ -74,8 +73,8 @@ class ApiClient {
     }
   }
 
-  // Ajouter une nouvelle création
-  static async addCreation(title, description, imageFile) {
+  // Ajouter une nouvelle création (modifié pour utiliser des URLs d'images)
+  static async addCreation(title, description, imageUrl) {
     console.log('[API] Appel de addCreation()');
     try {
       // Vérifier si l'admin est connecté
@@ -83,16 +82,16 @@ class ApiClient {
         return { success: false, error: 'Non autorisé' };
       }
 
-      // 1. Upload de l'image
-      const imageRef = storage.ref().child(`creations/${Date.now()}_${imageFile.name}`);
-      const uploadTask = await imageRef.put(imageFile);
-      const imageUrl = await uploadTask.ref.getDownloadURL();
+      // Vérifier que l'URL de l'image est valide
+      if (!imageUrl || !imageUrl.trim()) {
+        return { success: false, error: 'URL d\'image non valide' };
+      }
 
-      // 2. Création du document dans Firestore
+      // Création du document dans Firestore avec l'URL de l'image
       const creationRef = await db.collection("creations").add({
         title,
         description,
-        image: imageUrl,
+        image: imageUrl.trim(),
         likes: 0,
         commentCount: 0,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
@@ -104,7 +103,7 @@ class ApiClient {
           id: creationRef.id,
           title,
           description,
-          image: imageUrl,
+          image: imageUrl.trim(),
           likes: 0,
           commentCount: 0
         }
@@ -123,25 +122,7 @@ class ApiClient {
         return { success: false, error: 'Non autorisé' };
       }
 
-      // 1. Récupérer la création pour avoir l'URL de l'image
-      const creationDoc = await db.collection("creations").doc(creationId).get();
-      if (!creationDoc.exists) {
-        return { success: false, error: 'Création non trouvée' };
-      }
-
-      const creationData = creationDoc.data();
-
-      // 2. Supprimer l'image de Storage si elle existe
-      if (creationData.image) {
-        try {
-          const imageRef = storage.refFromURL(creationData.image);
-          await imageRef.delete();
-        } catch (imageError) {
-          console.warn('[API] Erreur lors de la suppression de l\'image:', imageError);
-        }
-      }
-
-      // 3. Supprimer tous les commentaires associés
+      // 1. Supprimer tous les commentaires associés
       const commentsSnapshot = await db.collection("comments")
         .where("creationId", "==", creationId)
         .get();
@@ -151,7 +132,7 @@ class ApiClient {
         batch.delete(doc.ref);
       });
       
-      // 4. Supprimer la création
+      // 2. Supprimer la création
       batch.delete(db.collection("creations").doc(creationId));
       
       await batch.commit();
@@ -163,8 +144,8 @@ class ApiClient {
     }
   }
 
-  // Modifier une création
-  static async updateCreation(creationId, { title, description, imageFile = null }) {
+  // Modifier une création (modifié pour utiliser des URLs d'images)
+  static async updateCreation(creationId, { title, description, imageUrl = null }) {
     console.log(`[API] Appel de updateCreation() pour creationId: ${creationId}`);
     try {
       if (!auth.currentUser) {
@@ -175,28 +156,12 @@ class ApiClient {
       if (title) updateData.title = title;
       if (description) updateData.description = description;
 
-      // Si une nouvelle image est fournie
-      if (imageFile) {
-        // 1. Upload de la nouvelle image
-        const imageRef = storage.ref().child(`creations/${Date.now()}_${imageFile.name}`);
-        const uploadTask = await imageRef.put(imageFile);
-        const newImageUrl = await uploadTask.ref.getDownloadURL();
-        updateData.image = newImageUrl;
-
-        // 2. Supprimer l'ancienne image
-        try {
-          const creationDoc = await db.collection("creations").doc(creationId).get();
-          const oldImageUrl = creationDoc.data().image;
-          if (oldImageUrl) {
-            const oldImageRef = storage.refFromURL(oldImageUrl);
-            await oldImageRef.delete();
-          }
-        } catch (error) {
-          console.warn('[API] Erreur lors de la suppression de l\'ancienne image:', error);
-        }
+      // Si une nouvelle URL d'image est fournie
+      if (imageUrl && imageUrl.trim()) {
+        updateData.image = imageUrl.trim();
       }
 
-      // 3. Mettre à jour le document
+      // Mettre à jour le document
       await db.collection("creations").doc(creationId).update({
         ...updateData,
         lastModified: firebase.firestore.FieldValue.serverTimestamp()
