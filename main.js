@@ -82,8 +82,15 @@ async function displayCreations() {
         creations.forEach(creation => {
             const creationCard = document.createElement('div');
             creationCard.className = 'creation-card';
+            
+            // Vérifier que l'URL de l'image est valide
+            let imageUrl = creation.image;
+            
+            // Alternative si l'image ne se charge pas
+            const onImageError = `this.onerror=null; this.src='https://placehold.co/400x300/eee/999?text=Image+non+disponible'; console.log('[MAIN] Image non chargée:', '${imageUrl}');`;
+            
             creationCard.innerHTML = `
-                <img src="${creation.image}" alt="${creation.title}" class="creation-image">
+                <img src="${imageUrl}" alt="${creation.title}" class="creation-image" onerror="${onImageError}">
                 <div class="creation-details">
                     <h3 class="creation-title">${creation.title}</h3>
                     <p class="creation-description">${creation.description}</p>
@@ -114,6 +121,9 @@ async function displayCreations() {
             btn.addEventListener('click', openCommentsModal);
         });
         
+        // Vérifier les images après le chargement
+        setTimeout(checkImagesUrls, 2000);
+        
     } catch (error) {
         console.error('[MAIN] Exception dans displayCreations():', error);
         
@@ -131,8 +141,12 @@ async function displayCreations() {
             creations.forEach(creation => {
                 const creationCard = document.createElement('div');
                 creationCard.className = 'creation-card';
+                
+                // Alternative si l'image ne se charge pas
+                const onImageError = `this.onerror=null; this.src='https://placehold.co/400x300/eee/999?text=Image+non+disponible'; console.log('[MAIN] Image non chargée:', '${creation.image}');`;
+                
                 creationCard.innerHTML = `
-                    <img src="${creation.image}" alt="${creation.title}" class="creation-image">
+                    <img src="${creation.image}" alt="${creation.title}" class="creation-image" onerror="${onImageError}">
                     <div class="creation-details">
                         <h3 class="creation-title">${creation.title}</h3>
                         <p class="creation-description">${creation.description}</p>
@@ -158,8 +172,32 @@ async function displayCreations() {
             document.querySelectorAll('.comments-btn').forEach(btn => {
                 btn.addEventListener('click', openCommentsModal);
             });
+            
+            // Vérifier les images après le chargement
+            setTimeout(checkImagesUrls, 2000);
         }
     }
+}
+
+// Vérifier les URL d'images
+function checkImagesUrls() {
+    console.log('[MAIN] Vérification des URL d\'images');
+    const images = document.querySelectorAll('.creation-image');
+    
+    if (images.length === 0) {
+        console.log('[MAIN] Aucune image trouvée sur la page');
+        return;
+    }
+    
+    images.forEach((img, index) => {
+        console.log(`[MAIN] Image ${index + 1}:`, {
+            src: img.getAttribute('src'),
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight,
+            complete: img.complete,
+            hasError: !img.complete || img.naturalWidth === 0
+        });
+    });
 }
 
 // Afficher une notification API
@@ -585,13 +623,15 @@ async function showAdminInterface() {
             <form id="addCreationForm" style="margin-bottom:2rem;">
                 <input type="text" id="creationTitle" placeholder="Titre" required style="margin-bottom:0.5rem;width:100%;"/><br>
                 <textarea id="creationDescription" placeholder="Description" required style="margin-bottom:0.5rem;width:100%;"></textarea><br>
-                <input type="text" id="creationImageUrl" placeholder="URL de l'image (Google Photos, etc.)" required style="margin-bottom:0.5rem;width:100%;"/><br>
-                <div style="margin-bottom:1rem; font-size:0.85rem; color:#666;">
-                    <p>Pour Google Photos: Ouvrez votre photo dans Google Photos, cliquez sur Partager, 
-                    choisissez "Créer un lien" puis "Copier le lien".</p>
-                </div>
+                <input type="text" id="creationImageUrl" placeholder="URL de l'image" required style="margin-bottom:0.5rem;width:100%;"/><br>
                 <button type="submit" style="background:#8c2131;color:white;padding:0.5rem 1rem;">Ajouter</button>
             </form>
+            
+            <h3>Mes créations</h3>
+            <div id="adminCreationsList" style="margin-bottom:2rem;">
+                <!-- Les créations seront ajoutées ici dynamiquement -->
+                <p>Chargement des créations...</p>
+            </div>
             
             <h3>Commentaires en attente de modération</h3>
         `;
@@ -666,6 +706,7 @@ async function showAdminInterface() {
                         alert('Création ajoutée avec succès !');
                         addCreationForm.reset();
                         displayCreations(); // Rafraîchir la liste
+                        loadCreationsInAdminInterface(); // Rafraîchir la liste dans l'admin
                     } else {
                         alert('Erreur lors de l\'ajout : ' + response.error);
                     }
@@ -803,9 +844,121 @@ async function showAdminInterface() {
                 }
             });
         });
+
+        // Charger les créations dans l'interface admin
+        loadCreationsInAdminInterface();
+        
     } catch (error) {
         console.error('[MAIN] Exception dans showAdminInterface():', error);
         alert('Une erreur est survenue lors du chargement de l\'interface admin.');
+    }
+}
+
+// Afficher les créations dans l'interface d'administration
+async function loadCreationsInAdminInterface() {
+    console.log('[MAIN] Chargement des créations dans l\'interface admin');
+    
+    const adminCreationsList = document.getElementById('adminCreationsList');
+    if (!adminCreationsList) {
+        console.error('[MAIN] Élément #adminCreationsList introuvable');
+        return;
+    }
+    
+    try {
+        // Récupérer les créations depuis l'API
+        const response = await ApiClient.getCreations();
+        
+        if (response.success && response.creations.length > 0) {
+            console.log('[MAIN] Créations récupérées pour l\'admin:', response.creations);
+            
+            let creationsHTML = '<div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">';
+            
+            response.creations.forEach(creation => {
+                creationsHTML += `
+                    <div style="padding: 1rem; background-color: #f9f9f9; border-radius: 5px; position: relative;">
+                        <div style="display: flex; align-items: flex-start;">
+                            <img src="${creation.image}" alt="${creation.title}" style="width: 100px; height: 100px; object-fit: cover; margin-right: 1rem; border-radius: 5px;">
+                            <div>
+                                <h4 style="margin: 0 0 0.5rem;">${creation.title}</h4>
+                                <p style="font-size: 0.9rem; margin: 0 0 0.5rem;">${creation.description.substring(0, 100)}${creation.description.length > 100 ? '...' : ''}</p>
+                                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                                    <button class="delete-creation-btn" data-id="${creation.id}" style="background-color: #f44336; color: white; border: none; padding: 0.3rem 0.6rem; cursor: pointer; border-radius: 3px;">Supprimer</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            creationsHTML += '</div>';
+            adminCreationsList.innerHTML = creationsHTML;
+            
+            // Ajouter les écouteurs d'événements pour les boutons de suppression
+            document.querySelectorAll('.delete-creation-btn').forEach(btn => {
+                btn.addEventListener('click', handleDeleteCreation);
+            });
+        } else {
+            adminCreationsList.innerHTML = '<p>Aucune création trouvée.</p>';
+        }
+    } catch (error) {
+        console.error('[MAIN] Erreur lors du chargement des créations dans l\'admin:', error);
+        adminCreationsList.innerHTML = '<p>Erreur lors du chargement des créations.</p>';
+    }
+}
+
+// Gérer la suppression d'une création
+async function handleDeleteCreation(e) {
+    const creationId = e.currentTarget.dataset.id;
+    if (!creationId) {
+        console.error('[MAIN] ID de création manquant pour la suppression');
+        return;
+    }
+    
+    // Demander confirmation
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette création ? Cette action est irréversible.')) {
+        return;
+    }
+    
+    console.log(`[MAIN] Suppression de la création ID: ${creationId}`);
+    
+    try {
+        // Désactiver le bouton pendant le traitement
+        e.currentTarget.disabled = true;
+        e.currentTarget.textContent = 'Suppression...';
+        
+        // Appeler l'API pour supprimer la création
+        const response = await ApiClient.deleteCreation(creationId);
+        
+        if (response.success) {
+            console.log(`[MAIN] Création ${creationId} supprimée avec succès`);
+            
+            // Retirer la création de l'affichage
+            const creationElement = e.currentTarget.closest('div[style*="padding: 1rem"]');
+            if (creationElement) {
+                creationElement.remove();
+            }
+            
+            // Vérifier s'il reste des créations
+            const remainingCreations = document.querySelectorAll('.delete-creation-btn');
+            if (remainingCreations.length === 0) {
+                document.getElementById('adminCreationsList').innerHTML = '<p>Aucune création trouvée.</p>';
+            }
+            
+            // Rafraîchir l'affichage des créations sur la page principale
+            displayCreations();
+            
+            alert('Création supprimée avec succès !');
+        } else {
+            console.error('[MAIN] Erreur lors de la suppression de la création:', response.error);
+            alert('Erreur lors de la suppression de la création. Veuillez réessayer.');
+            e.currentTarget.disabled = false;
+            e.currentTarget.textContent = 'Supprimer';
+        }
+    } catch (error) {
+        console.error('[MAIN] Exception lors de la suppression de la création:', error);
+        alert('Erreur lors de la suppression de la création. Veuillez réessayer.');
+        e.currentTarget.disabled = false;
+        e.currentTarget.textContent = 'Supprimer';
     }
 }
 
