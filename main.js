@@ -1,3 +1,4 @@
+// main.js
 // Variables globales
 console.log('[MAIN] Initialisation du script principal');
 
@@ -82,7 +83,7 @@ async function displayCreations() {
             const creationCard = document.createElement('div');
             creationCard.className = 'creation-card';
             creationCard.innerHTML = `
-                <img src="${creation.image.replace('/api/placeholder/', 'https://picsum.photos/')}" alt="${creation.title}" class="creation-image">
+                <img src="${creation.image}" alt="${creation.title}" class="creation-image">
                 <div class="creation-details">
                     <h3 class="creation-title">${creation.title}</h3>
                     <p class="creation-description">${creation.description}</p>
@@ -131,7 +132,7 @@ async function displayCreations() {
                 const creationCard = document.createElement('div');
                 creationCard.className = 'creation-card';
                 creationCard.innerHTML = `
-                    <img src="${creation.image.replace('/api/placeholder/', 'https://picsum.photos/')}" alt="${creation.title}" class="creation-image">
+                    <img src="${creation.image}" alt="${creation.title}" class="creation-image">
                     <div class="creation-details">
                         <h3 class="creation-title">${creation.title}</h3>
                         <p class="creation-description">${creation.description}</p>
@@ -584,7 +585,11 @@ async function showAdminInterface() {
             <form id="addCreationForm" style="margin-bottom:2rem;">
                 <input type="text" id="creationTitle" placeholder="Titre" required style="margin-bottom:0.5rem;width:100%;"/><br>
                 <textarea id="creationDescription" placeholder="Description" required style="margin-bottom:0.5rem;width:100%;"></textarea><br>
-                <input type="file" id="creationImage" accept="image/*" required style="margin-bottom:0.5rem;"/><br>
+                <input type="text" id="creationImageUrl" placeholder="URL de l'image (Google Photos, etc.)" required style="margin-bottom:0.5rem;width:100%;"/><br>
+                <div style="margin-bottom:1rem; font-size:0.85rem; color:#666;">
+                    <p>Pour Google Photos: Ouvrez votre photo dans Google Photos, cliquez sur Partager, 
+                    choisissez "Créer un lien" puis "Copier le lien".</p>
+                </div>
                 <button type="submit" style="background:#8c2131;color:white;padding:0.5rem 1rem;">Ajouter</button>
             </form>
             
@@ -648,15 +653,15 @@ async function showAdminInterface() {
                 e.preventDefault();
                 const title = document.getElementById('creationTitle').value.trim();
                 const description = document.getElementById('creationDescription').value.trim();
-                const imageInput = document.getElementById('creationImage');
-                if (!title || !description || !imageInput.files.length) {
-                    alert('Veuillez remplir tous les champs et choisir une image.');
+                const imageUrl = document.getElementById('creationImageUrl').value.trim();
+                
+                if (!title || !description || !imageUrl) {
+                    alert('Veuillez remplir tous les champs.');
                     return;
                 }
-                const imageFile = imageInput.files[0];
                 
                 try {
-                    const response = await ApiClient.addCreation(title, description, imageFile);
+                    const response = await ApiClient.addCreation(title, description, imageUrl);
                     if (response.success) {
                         alert('Création ajoutée avec succès !');
                         addCreationForm.reset();
